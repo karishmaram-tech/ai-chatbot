@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+
+# Environment
+.env
+*.env
+
+# Database
+*.db
+*.sqlite3
+test.db
+
+# Vector store
+backend/vector_store/
+
+# Node
+frontend/node_modules/
+frontend/.next/
+
+# Temp files
+backend/make_ci.py
+backend/fix_conftest.py
+backend/update_main.py
+backend/add_cache.py
+backend/add_refresh_tokens.py
+backend/create_files.py
+make_ci.py
+
+# OS
+.DS_Store
+Thumbs.db
