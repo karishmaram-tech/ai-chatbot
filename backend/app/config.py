@@ -6,7 +6,7 @@ from functools import lru_cache
 class Settings(BaseSettings):
 
     # App
-    app_name: str = Field(default='AI Chatbot')
+    app_name: str = Field(default='Lumora AI')
     app_version: str = Field(default='1.0.0')
     environment: str = Field(default='development')
     debug: bool = Field(default=False)
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     # LangSmith
     langchain_tracing_v2: bool = Field(default=False)
     langchain_api_key: str = Field(default='')
-    langchain_project: str = Field(default='ai-chatbot')
+    langchain_project: str = Field(default='lumora-ai')
 
     # Rate Limiting
     rate_limit_requests: int = Field(default=60)

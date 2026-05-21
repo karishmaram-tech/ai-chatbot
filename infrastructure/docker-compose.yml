@@ -2,7 +2,7 @@
 
   postgres:
     image: postgres:16-alpine
-    container_name: chatbot_postgres
+    container_name: lumora_postgres
     environment:
       POSTGRES_USER: chatbot
       POSTGRES_PASSWORD: password
@@ -19,7 +19,7 @@
 
   redis:
     image: redis:7-alpine
-    container_name: chatbot_redis
+    container_name: lumora_redis
     ports:
       - "6379:6379"
     healthcheck:
@@ -32,7 +32,7 @@
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: chatbot_backend
+    container_name: lumora_backend
     env_file:
       - ../backend/.env
     environment:
@@ -52,7 +52,7 @@
     build:
       context: ../frontend
       dockerfile: Dockerfile
-    container_name: chatbot_frontend
+    container_name: lumora_frontend
     ports:
       - "3000:3000"
     depends_on:
@@ -60,7 +60,7 @@
 
   prometheus:
     image: prom/prometheus:latest
-    container_name: chatbot_prometheus
+    container_name: lumora_prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
@@ -68,7 +68,7 @@
 
   grafana:
     image: grafana/grafana:latest
-    container_name: chatbot_grafana
+    container_name: lumora_grafana
     environment:
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_USERS_ALLOW_SIGN_UP: "false"

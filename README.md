@@ -1,8 +1,8 @@
-# NeuraChat — Production AI Chatbot Platform
+# NeuraChat — Production Lumora AI Platform
 
 > A full-stack AI SaaS platform with RAG pipeline, real-time streaming, JWT authentication, and complete observability. Built to production standards with FastAPI, Next.js, PostgreSQL, Redis, and Google Gemini.
 
-[![CI/CD](https://github.com/karishmaram-tech/ai-chatbot/actions/workflows/ci.yml/badge.svg)](https://github.com/karishmaram-tech/ai-chatbot/actions)
+[![CI/CD](https://github.com/karishmaram-tech/lumora-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/karishmaram-tech/lumora-ai/actions)
 [![Python](https://img.shields.io/badge/Python-3.12-blue)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
@@ -79,8 +79,8 @@ graph TD
 ### 1. Clone and setup
 
 ```bash
-git clone https://github.com/karishmaram-tech/ai-chatbot.git
-cd ai-chatbot
+git clone https://github.com/karishmaram-tech/lumora-ai.git
+cd lumora-ai
 ```
 
 ### 2. Start infrastructure
@@ -156,7 +156,7 @@ DEBUG=true
 ```
 
 ## Project Structure
-ai-chatbot/
+lumora-ai/
 ├── backend/
 │   ├── app/
 │   │   ├── api/routes/      # FastAPI route handlers
