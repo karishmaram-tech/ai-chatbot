@@ -1,10 +1,13 @@
-import uuid
+﻿import os
+
+content = """import uuid
 import json
 import google.generativeai as genai
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+
 from app.db.postgres import get_db
 from app.db.models import User, Message, Conversation
 from app.core.auth import get_current_user
@@ -34,13 +37,22 @@ async def chat_stream(
         user_id=current_user.id,
         first_message=request.message,
     )
+
     history = await get_conversation_history(db, conversation.id)
     rag_context = build_rag_context(request.message)
+
     user_message_with_context = request.message
     if rag_context:
-        user_message_with_context = rag_context + "\n\nUser question: " + request.message
+        user_message_with_context = rag_context + "\\n\\nUser question: " + request.message
+        logger.info("rag_context_injected", query=request.message[:50])
+
     history.append({"role": "user", "content": user_message_with_context})
-    user_msg = Message(conversation_id=conversation.id, role="user", content=request.message)
+
+    user_msg = Message(
+        conversation_id=conversation.id,
+        role="user",
+        content=request.message,
+    )
     db.add(user_msg)
     await db.flush()
 
@@ -57,30 +69,36 @@ async def chat_stream(
                 for msg in history[1:-1]:
                     role = "user" if msg["role"] == "user" else "model"
                     gemini_history.append({"role": role, "parts": [msg["content"]]})
+
                 chat = model.start_chat(history=gemini_history)
                 response = await chat.send_message_async(user_message_with_context, stream=True)
                 async for chunk in response:
                     if chunk.text:
                         full_response += chunk.text
-                        yield "data: " + json.dumps({"type": "chunk", "content": chunk.text}) + "\n\n"
+                        yield "data: " + json.dumps({"type": "chunk", "content": chunk.text}) + "\\n\\n"
                 total_tokens = len(full_response) // 4
             else:
                 stream = await openai_client.chat.completions.create(
-                    model=settings.openai_model, messages=history,
+                    model=settings.openai_model,
+                    messages=history,
                     max_tokens=settings.openai_max_tokens,
-                    temperature=settings.openai_temperature, stream=True,
+                    temperature=settings.openai_temperature,
+                    stream=True,
                 )
                 async for chunk in stream:
                     delta = chunk.choices[0].delta
                     if delta.content:
                         full_response += delta.content
-                        yield "data: " + json.dumps({"type": "chunk", "content": delta.content}) + "\n\n"
+                        yield "data: " + json.dumps({"type": "chunk", "content": delta.content}) + "\\n\\n"
                     if chunk.usage:
                         total_tokens = chunk.usage.total_tokens
+
             cost = calculate_cost(settings.llm_provider, total_tokens, 0)
             ai_message = Message(
-                conversation_id=conversation.id, role="assistant",
-                content=full_response, tokens_used=total_tokens,
+                conversation_id=conversation.id,
+                role="assistant",
+                content=full_response,
+                tokens_used=total_tokens,
                 cost_usd=cost,
                 model=settings.gemini_model if settings.llm_provider == "gemini" else settings.openai_model,
             )
@@ -88,14 +106,19 @@ async def chat_stream(
             conversation.total_tokens += total_tokens
             conversation.total_cost_usd += cost
             await db.commit()
-            logger.info("chat_completed", user_id=str(current_user.id), total_tokens=total_tokens)
-            yield "data: " + json.dumps({"type": "done", "conversation_id": str(conversation.id), "tokens": total_tokens, "cost_usd": cost, "rag_used": bool(rag_context)}) + "\n\n"
+
+            logger.info("chat_completed", user_id=str(current_user.id), total_tokens=total_tokens, rag_used=bool(rag_context))
+            yield "data: " + json.dumps({"type": "done", "conversation_id": str(conversation.id), "tokens": total_tokens, "cost_usd": cost, "rag_used": bool(rag_context)}) + "\\n\\n"
+
         except Exception as e:
             logger.error("chat_error", error=str(e))
-            yield "data: " + json.dumps({"type": "error", "message": str(e)}) + "\n\n"
+            yield "data: " + json.dumps({"type": "error", "message": str(e)}) + "\\n\\n"
 
-    return StreamingResponse(generate(), media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/conversations", response_model=list[ConversationResponse])
@@ -104,7 +127,8 @@ async def get_conversations(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Conversation).where(Conversation.user_id == current_user.id)
+        select(Conversation)
+        .where(Conversation.user_id == current_user.id)
         .order_by(Conversation.updated_at.desc())
     )
     return result.scalars().all()
@@ -116,6 +140,7 @@ async def get_messages(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    from fastapi import HTTPException
     result = await db.execute(
         select(Conversation).where(
             Conversation.id == uuid.UUID(conversation_id),
@@ -125,11 +150,33 @@ async def get_messages(
     conv = result.scalar_one_or_none()
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
+
     result = await db.execute(
-        select(Message).where(Message.conversation_id == uuid.UUID(conversation_id))
+        select(Message)
+        .where(Message.conversation_id == uuid.UUID(conversation_id))
         .order_by(Message.created_at.asc())
     )
     messages = result.scalars().all()
-    return [{"id": str(m.id), "role": m.role, "content": m.content,
-             "tokens_used": m.tokens_used, "cost_usd": m.cost_usd,
-             "created_at": m.created_at.isoformat()} for m in messages]
+    return [
+        {
+            "id": str(m.id),
+            "role": m.role,
+            "content": m.content,
+            "tokens_used": m.tokens_used,
+            "cost_usd": m.cost_usd,
+            "created_at": m.created_at.isoformat(),
+        }
+        for m in messages
+    ]
+"""
+
+with open("app/api/routes/chat.py", "w", encoding="utf-8", newline="\\n") as f:
+    f.write(content)
+
+# Verify no BOM
+with open("app/api/routes/chat.py", "rb") as f:
+    first_bytes = f.read(3)
+assert first_bytes != b"\\xef\\xbb\\xbf", "BOM found!"
+print("chat.py rewritten successfully - no BOM!")
+print("First line:", open("app/api/routes/chat.py").readline())
+

@@ -7,7 +7,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import get_settings
 from app.observability.logging import setup_logging, get_logger
-from app.api.routes import health, auth, chat, documents
+from app.api.routes import health, auth, chat, documents, analytics
 from app.db.postgres import init_db, close_db
 from app.db.redis import init_redis, close_redis
 
@@ -78,6 +78,8 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(documents.router)
+app.include_router(analytics.router)
+app.include_router(analytics.router)
 
 
 @app.get("/")
