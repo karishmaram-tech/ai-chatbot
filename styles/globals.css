@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #050505;
+    color: #F5F5F7;
+    font-family: 'Geist Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Custom sharp, minimalist selection highlight */
+  ::selection {
+    background-color: #E24A00;
+    color: #050505;
+  }
+}
+
+/* Precision line utility for visual structure */
+.editorial-grid {
+  background-image: linear-gradient(to right, #1F1F24 1px, transparent 1px),
+                    linear-gradient(to bottom, #1F1F24 1px, transparent 1px);
+  background-size: 4rem 4rem;
+}
