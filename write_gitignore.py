@@ -1,4 +1,4 @@
-# Python
+﻿content = """# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -63,3 +63,9 @@ logs/
 
 # Grafana data
 infrastructure/grafana/data/
+"""
+
+with open(".gitignore", "w", encoding="utf-8", newline="\n") as f:
+    f.write(content)
+print(".gitignore updated!")
+

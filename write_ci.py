@@ -1,4 +1,7 @@
-name: Lumora AI CI/CD
+﻿import os
+os.makedirs(".github/workflows", exist_ok=True)
+
+ci = """name: Lumora AI CI/CD
 
 on:
   push:
@@ -92,3 +95,9 @@ jobs:
           base: main
           head: HEAD
         continue-on-error: true
+"""
+
+with open(".github/workflows/ci.yml", "w", encoding="utf-8", newline="\n") as f:
+    f.write(ci)
+print("CI/CD pipeline written!")
+

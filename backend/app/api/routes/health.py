@@ -1,48 +1,46 @@
-﻿from fastapi import APIRouter
+from fastapi import APIRouter
 from datetime import datetime, timezone
 from app.config import get_settings
 from app.observability.logging import get_logger
 
-router = APIRouter(prefix='/health', tags=['Health'])
+router = APIRouter(prefix="/health", tags=["Health"])
 settings = get_settings()
 logger = get_logger(__name__)
 
-@router.get('/')
+
+@router.get("/")
 async def health_check():
     return {
-        'status': 'healthy',
-        'timestamp': datetime.now(timezone.utc).isoformat(),
-        'app': settings.app_name,
-        'version': settings.app_version,
+        "status": "healthy",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "app": settings.app_name,
+        "version": settings.app_version,
+        "environment": settings.environment,
     }
 
-@router.get('/ready')
+
+@router.get("/ready")
 async def readiness_check():
-    import sqlalchemy
-    checks = {'api': True, 'database': False, 'redis': False}
-
-    try:
-        from app.db.postgres import engine
-        async with engine.connect() as conn:
-            await conn.execute(sqlalchemy.text('SELECT 1'))
-        checks['database'] = True
-    except Exception as e:
-        logger.error('db_check_failed', error=str(e))
-
-    try:
-        from app.db.redis import get_redis
-        await get_redis().ping()
-        checks['redis'] = True
-    except Exception as e:
-        logger.error('redis_check_failed', error=str(e))
-
+    from app.db.postgres import check_db
+    from app.db.redis import check_redis
+    checks = {
+        "api": True,
+        "database": await check_db(),
+        "redis": await check_redis(),
+    }
     all_ready = all(checks.values())
+    logger.info("readiness_check", checks=checks, ready=all_ready)
     return {
-        'status': 'ready' if all_ready else 'not_ready',
-        'timestamp': datetime.now(timezone.utc).isoformat(),
-        'checks': checks,
+        "status": "ready" if all_ready else "not_ready",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "checks": checks,
     }
 
-@router.get('/version')
+
+@router.get("/version")
 async def version():
-    return {'app': settings.app_name, 'version': settings.app_version}
+    return {
+        "app": settings.app_name,
+        "version": settings.app_version,
+        "environment": settings.environment,
+    }

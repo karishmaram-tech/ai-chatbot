@@ -1,3 +1,4 @@
+from app.config import get_settings as _get_settings
 """
 rag.py - RAG pipeline: document processing and semantic search.
 
