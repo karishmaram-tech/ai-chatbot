@@ -1,9 +1,5 @@
-# render.yaml — Neon PostgreSQL edition
-# No internal Render database needed — we use Neon (free, persistent, no expiry)
-
 services:
 
-  # ── FastAPI Backend ──────────────────────────────────────
   - type: web
     name: lumora-ai-backend
     runtime: docker
@@ -11,83 +7,45 @@ services:
     dockerContext: ./backend
     plan: free
     autoDeploy: true
-
     healthCheckPath: /health/
-
     envVars:
-      # App settings
       - key: ENVIRONMENT
         value: production
       - key: DEBUG
         value: "false"
       - key: APP_NAME
         value: Lumora AI
-
-      # Auto-generated secrets (Render generates random values)
       - key: SECRET_KEY
         generateValue: true
       - key: JWT_SECRET_KEY
         generateValue: true
-
-      # AI provider — set in Render dashboard
       - key: LLM_PROVIDER
         value: gemini
       - key: GEMINI_MODEL
         value: gemini-2.0-flash
       - key: GEMINI_API_KEY
         sync: false
-
-      # Neon database — paste your Neon connection string in Render dashboard
-      # Format: postgresql+asyncpg://user:pass@ep-xxxx.neon.tech/dbname?sslmode=require
       - key: DATABASE_URL
         sync: false
-
-      # Redis — use Upstash free tier (no sleep, 10k req/day free)
-      # Get URL from upstash.com → Create Database → Redis → Copy URL
       - key: REDIS_URL
         sync: false
-
-      # CORS — set this AFTER frontend deploys
-      # Value: https://lumora-ai-frontend.onrender.com
       - key: CORS_ORIGINS
         sync: false
-
-      # Vector store (pgvector on Neon = no /tmp needed)
       - key: VECTOR_STORE_PATH
         value: /tmp/vector_store
-
-      # JWT config
       - key: JWT_ALGORITHM
         value: HS256
       - key: JWT_EXPIRE_MINUTES
         value: "1440"
 
-  # ── Next.js Frontend (Static CDN) ───────────────────────
-  - type: static
+  - type: web
     name: lumora-ai-frontend
+    runtime: node
     rootDir: frontend
     buildCommand: npm ci && npm run build
-    staticPublishPath: out
+    startCommand: npx serve out -p $PORT --single
+    plan: free
     autoDeploy: true
-
-    headers:
-      - path: /*
-        name: X-Frame-Options
-        value: DENY
-      - path: /*
-        name: X-Content-Type-Options
-        value: nosniff
-      - path: /*
-        name: Referrer-Policy
-        value: strict-origin-when-cross-origin
-
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-
     envVars:
-      # Set this to your backend URL after backend deploys
-      # Example: https://lumora-ai-backend.onrender.com
       - key: NEXT_PUBLIC_API_URL
         sync: false
