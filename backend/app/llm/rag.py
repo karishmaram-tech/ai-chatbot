@@ -1,18 +1,17 @@
-from app.config import get_settings as _get_settings
 """
-rag.py - RAG pipeline: document processing and semantic search.
+rag.py - RAG pipeline: document processing and semantic search via Neon (pgvector).
 
 Steps:
 1. Upload PDF -> extract text
 2. Split text into chunks (overlapping for context)
 3. Embed chunks into vectors
-4. Store in FAISS index
-5. At query time: embed query, find similar chunks, return them
+4. Store directly in Neon PostgreSQL using pgvector
+5. At query time: embed query, find similar chunks natively in SQL, return them
 """
 
 import os
 import json
-import faiss
+import psycopg
 import numpy as np
 from pathlib import Path
 from pypdf import PdfReader
@@ -21,13 +20,23 @@ from app.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Where we store the FAISS index and document chunks
-VECTOR_STORE_DIR = Path('vector_store')
-VECTOR_STORE_DIR.mkdir(exist_ok=True)
-
-INDEX_PATH = VECTOR_STORE_DIR / 'faiss.index'
-CHUNKS_PATH = VECTOR_STORE_DIR / 'chunks.json'
-
+def get_db_connection():
+    """Extract connection parameters from .env and return a psycopg connection."""
+    # Read the updated .env file manually or look for environment variables
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        # Fallback to reading file directly if environment isn't populated yet
+        with open(".env", "r") as f:
+            for line in f:
+                if line.startswith("DATABASE_URL="):
+                    db_url = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    break
+    
+    # Strip drivers prefix if added for async engines (+psycopg or +asyncpg)
+    if "postgresql+" in db_url:
+        db_url = db_url.split("+", 1)[0] + "://" + db_url.split("://", 1)[1]
+        
+    return psycopg.connect(db_url)
 
 def extract_text_from_pdf(pdf_path: str) -> str:
     """Extract all text from a PDF file."""
@@ -38,21 +47,8 @@ def extract_text_from_pdf(pdf_path: str) -> str:
     logger.info('pdf_text_extracted', path=pdf_path, pages=len(reader.pages))
     return text
 
-
-def split_into_chunks(
-    text: str,
-    chunk_size: int = 500,
-    overlap: int = 50,
-) -> list[str]:
-    """
-    Split text into overlapping chunks.
-
-    Why overlap? So context at chunk boundaries is not lost.
-    Example with chunk_size=10, overlap=3:
-    'Hello world foo bar baz'
-    Chunk 1: 'Hello world foo'
-    Chunk 2: 'foo bar baz'      <- 'foo' repeated for context
-    """
+def split_into_chunks(text: str, chunk_size: int = 500, overlap: int = 50) -> list[str]:
+    """Split text into overlapping chunks so context at boundaries isn't lost."""
     words = text.split()
     chunks = []
     start = 0
@@ -67,107 +63,87 @@ def split_into_chunks(
     logger.info('text_split', total_words=len(words), chunks=len(chunks))
     return chunks
 
-
-def load_or_create_index():
-    """Load existing FAISS index or create a new empty one."""
-    if INDEX_PATH.exists() and CHUNKS_PATH.exists():
-        index = faiss.read_index(str(INDEX_PATH))
-        with open(CHUNKS_PATH, 'r') as f:
-            chunks = json.load(f)
-        logger.info('vector_index_loaded', chunks=len(chunks))
-        return index, chunks
-
-    # Create new empty index
-    # 384 = embedding dimension for all-MiniLM-L6-v2
-    # IndexFlatIP = Inner Product (cosine similarity with normalized vectors)
-    index = faiss.IndexFlatIP(384)
-    chunks = []
-    logger.info('vector_index_created')
-    return index, chunks
-
-
-def save_index(index, chunks: list[str]) -> None:
-    """Save FAISS index and chunks to disk."""
-    faiss.write_index(index, str(INDEX_PATH))
-    with open(CHUNKS_PATH, 'w') as f:
-        json.dump(chunks, f)
-    logger.info('vector_index_saved', chunks=len(chunks))
-
-
 def add_document(file_path: str, file_type: str = 'pdf') -> dict:
-    """
-    Process a document and add it to the vector store.
-
-    Returns stats about what was indexed.
-    """
-    # Extract text
+    """Process a document, compute vectors, and insert into the Neon database."""
     if file_type == 'pdf':
         text = extract_text_from_pdf(file_path)
     else:
         with open(file_path, 'r', encoding='utf-8') as f:
             text = f.read()
 
-    # Split into chunks
     chunks = split_into_chunks(text)
-
     if not chunks:
         raise ValueError('No text could be extracted from document')
 
-    # Embed chunks
+    # Generate embeddings
     embeddings = embed_texts(chunks)
 
-    # Load existing index and add new chunks
-    index, existing_chunks = load_or_create_index()
-    index.add(embeddings.astype(np.float32))
-    existing_chunks.extend(chunks)
+    # Insert into Neon cloud database
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            for chunk, embedding in zip(chunks, embeddings):
+                # Convert embedding numpy array directly to a list format for pgvector
+                embedding_list = embedding.tolist()
+                
+                cur.execute(
+                    """
+                    INSERT INTO document_chunks (content, embedding, metadata_json)
+                    VALUES (%s, %s::vector, %s);
+                    """,
+                    (chunk, embedding_list, json.dumps({"source": os.path.basename(file_path)}))
+                )
+            conn.commit()
 
-    # Save updated index
-    save_index(index, existing_chunks)
+    # Query current count total
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM document_chunks;")
+            total_chunks = cur.fetchone()[0]
 
     return {
         'chunks_added': len(chunks),
-        'total_chunks': len(existing_chunks),
+        'total_chunks': total_chunks,
     }
 
-
 def search_documents(query: str, top_k: int = 5) -> list[dict]:
-    """
-    Find the most relevant document chunks for a query.
-
-    Returns top_k chunks with their similarity scores.
-    """
-    if not INDEX_PATH.exists():
-        return []
-
-    index, chunks = load_or_create_index()
-
-    if index.ntotal == 0:
-        return []
-
-    # Embed the query
-    query_embedding = embed_query(query).astype(np.float32)
-
-    # Search for similar chunks
-    # scores = similarity scores, indices = positions in chunks list
-    scores, indices = index.search(query_embedding, min(top_k, index.ntotal))
+    """Find the most relevant document chunks directly inside Neon using cosine similarity."""
+    query_embedding = embed_query(query)
+    # Ensure it's converted to list format
+    if hasattr(query_embedding, "tolist"):
+        query_embedding = query_embedding.tolist()
 
     results = []
-    for score, idx in zip(scores[0], indices[0]):
-        if idx != -1 and score > 0.3:  # Filter low-relevance results
-            results.append({
-                'content': chunks[idx],
-                'score': float(score),
-            })
+    
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                # 1 - (embedding <=> %s) calculates cosine similarity natively in Postgres!
+                cur.execute(
+                    """
+                    SELECT content, 1 - (embedding <=> %s::vector) AS similarity
+                    FROM document_chunks
+                    WHERE 1 - (embedding <=> %s::vector) > 0.3
+                    ORDER BY embedding <=> %s::vector
+                    LIMIT %s;
+                    """,
+                    (query_embedding, query_embedding, query_embedding, top_k)
+                )
+                
+                rows = cur.fetchall()
+                for row in rows:
+                    results.append({
+                        'content': row[0],
+                        'score': float(row[1]),
+                    })
+    except Exception as e:
+        logger.error('database_search_failed', error=str(e))
+        return []
 
     logger.info('document_search', query=query[:50], results=len(results))
     return results
 
-
 def build_rag_context(query: str) -> str:
-    """
-    Build context string from relevant document chunks.
-    This gets injected into the AI prompt.
-    """
+    """Build context string from relevant document chunks for the AI prompt."""
     results = search_documents(query)
 
     if not results:
