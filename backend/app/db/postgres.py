@@ -41,6 +41,8 @@ def create_engine():
                 "application_name": settings.app_name,
             },
             "command_timeout": 60,
+            # Neon requires SSL
+            "ssl": "require" if "neon.tech" in settings.database_url else None,
         } if "asyncpg" in settings.database_url else {},
     )
 

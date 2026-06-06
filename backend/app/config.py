@@ -51,11 +51,15 @@ class Settings(BaseSettings):
     @field_validator("database_url", mode="before")
     @classmethod
     def fix_postgres_url(cls, v: str) -> str:
-        # Render/Railway provide postgres:// but asyncpg needs postgresql+asyncpg://
+        # Neon and Render provide postgres:// — asyncpg needs postgresql+asyncpg://
         if v.startswith("postgres://"):
             v = v.replace("postgres://", "postgresql+asyncpg://", 1)
         elif v.startswith("postgresql://") and "+asyncpg" not in v:
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        # Neon requires SSL — ensure sslmode=require is present
+        if "neon.tech" in v and "sslmode" not in v:
+            separator = "&" if "?" in v else "?"
+            v = v + separator + "sslmode=require"
         return v
 
     # Redis — supports both local and cloud URLs
