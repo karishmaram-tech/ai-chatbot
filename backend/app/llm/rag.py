@@ -52,10 +52,8 @@ def extract_text_from_pdf(pdf_path: str) -> str:
     for page in reader.pages:
         extracted = page.extract_text()
         if extracted:
-            text += extracted + "
-"
+            text += extracted + chr(10)
     return text
-
 
 def split_into_chunks(text: str, chunk_size: int = 500, overlap: int = 50) -> list:
     words = text.split()
@@ -135,6 +133,4 @@ def build_rag_context(query: str) -> str:
     context_parts = ["Relevant information from uploaded documents:"]
     for i, result in enumerate(results, 1):
         context_parts.append(f"[{i}] {result['content']}")
-    return "
-
-".join(context_parts)
+    return chr(10).join(context_parts)
