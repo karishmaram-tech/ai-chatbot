@@ -1,5 +1,4 @@
 services:
-
   - type: web
     name: lumora-ai-backend
     runtime: docker

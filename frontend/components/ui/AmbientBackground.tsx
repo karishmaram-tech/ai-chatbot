@@ -17,28 +17,11 @@ export function AmbientBackground() {
         animationDelay: "3s",
       }} />
       <div style={{
-        position: "absolute", borderRadius: "50%",
-        width: 400, height: 400, top: "40%", left: "45%",
-        transform: "translate(-50%,-50%)",
-        background: "radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 65%)",
-        animation: "breatheOrb1 7s ease-in-out infinite",
-        animationDelay: "5s",
-      }} />
-      <div style={{
-        position: "absolute", inset: 0,
+        position: "absolute",
+        inset: 0,
         backgroundImage: "linear-gradient(rgba(139,92,246,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.025) 1px, transparent 1px)",
         backgroundSize: "80px 80px",
       }} />
-      <style>{`
-        @keyframes breatheOrb1 {
-          0%,100% { opacity: 0.5; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.1); }
-        }
-        @keyframes breatheOrb2 {
-          0%,100% { opacity: 0.3; transform: scale(1); }
-          50% { opacity: 0.8; transform: scale(1.15); }
-        }
-      `}</style>
     </div>
   );
 }

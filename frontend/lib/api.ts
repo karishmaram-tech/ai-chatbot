@@ -1,9 +1,4 @@
-const API_BASE = (
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? ""
-    : "http://127.0.0.1:8000")
-);
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 async function fetchAPI(endpoint: string, options: RequestInit = {}) {
   const res = await fetch(API_BASE + endpoint, {
@@ -20,36 +15,21 @@ async function fetchAPI(endpoint: string, options: RequestInit = {}) {
 export const api = {
   auth: {
     login: (email: string, password: string) =>
-      fetchAPI("/api/v1/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      }),
+      fetchAPI("/api/v1/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
     register: (email: string, username: string, password: string) =>
-      fetchAPI("/api/v1/auth/register", {
-        method: "POST",
-        body: JSON.stringify({ email, username, password }),
-      }),
+      fetchAPI("/api/v1/auth/register", { method: "POST", body: JSON.stringify({ email, username, password }) }),
     me: (token: string) =>
-      fetchAPI("/api/v1/auth/me", {
-        headers: { Authorization: "Bearer " + token },
-      }),
+      fetchAPI("/api/v1/auth/me", { headers: { Authorization: "Bearer " + token } }),
   },
   chat: {
     getConversations: (token: string) =>
-      fetchAPI("/api/v1/chat/conversations", {
-        headers: { Authorization: "Bearer " + token },
-      }),
+      fetchAPI("/api/v1/chat/conversations", { headers: { Authorization: "Bearer " + token } }),
     getMessages: (conversationId: string, token: string) =>
-      fetchAPI("/api/v1/chat/conversations/" + conversationId + "/messages", {
-        headers: { Authorization: "Bearer " + token },
-      }),
+      fetchAPI("/api/v1/chat/conversations/" + conversationId + "/messages", { headers: { Authorization: "Bearer " + token } }),
     async *stream(message: string, token: string, conversationId?: string) {
       const res = await fetch(API_BASE + "/api/v1/chat/stream", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + token,
-        },
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
         body: JSON.stringify({ message, conversation_id: conversationId }),
       });
       if (!res.ok) throw new Error("Chat request failed");
@@ -77,15 +57,9 @@ export const api = {
         body: formData,
       }).then((r) => r.json());
     },
-    search: (query: string, token: string) =>
-      fetchAPI("/api/v1/documents/search?query=" + encodeURIComponent(query), {
-        headers: { Authorization: "Bearer " + token },
-      }),
   },
   analytics: {
     getUsage: (token: string) =>
-      fetchAPI("/api/v1/analytics/usage", {
-        headers: { Authorization: "Bearer " + token },
-      }),
+      fetchAPI("/api/v1/analytics/usage", { headers: { Authorization: "Bearer " + token } }),
   },
 };

@@ -14,7 +14,6 @@ export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [hovered, setHovered] = useState<string | null>(null);
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   useEffect(() => {
     if (token) api.chat.getConversations(token).then(setConversations).catch(console.error);
@@ -22,44 +21,30 @@ export function Sidebar() {
 
   function handleNav(path: string) {
     router.push(path);
-    if (isMobile) setSidebarOpen(false);
+    if (typeof window !== "undefined" && window.innerWidth < 768) setSidebarOpen(false);
   }
 
   function handleConvClick(id: string) {
     setActiveConversation(id);
     router.push("/chat");
-    if (isMobile) setSidebarOpen(false);
+    if (typeof window !== "undefined" && window.innerWidth < 768) setSidebarOpen(false);
   }
 
   return (
     <AnimatePresence>
       {sidebarOpen && (
         <>
-          {/* Mobile overlay */}
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-30 md:hidden"
             style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
-            onClick={() => setSidebarOpen(false)}
-          />
-          <motion.aside
-            initial={{ x: -256, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -256, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 340, damping: 34 }}
+            onClick={() => setSidebarOpen(false)} />
+          <motion.aside initial={{ x: -256, opacity: 0 }} animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -256, opacity: 0 }} transition={{ type: "spring", stiffness: 340, damping: 34 }}
             className="fixed md:relative z-40 flex flex-col h-screen flex-shrink-0"
-            style={{
-              width: 256,
-              background: "rgba(8,5,16,0.97)",
-              borderRight: "1px solid rgba(255,255,255,0.05)",
-              backdropFilter: "blur(40px)",
-            }}
-          >
-            <div className="px-5 py-4 flex items-center justify-between"
-              style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+            style={{ width: 256, background: "rgba(8,5,16,0.97)", borderRight: "1px solid rgba(255,255,255,0.05)", backdropFilter: "blur(40px)" }}>
+            <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
               <LumoraLogo size="sm" />
-              <button onClick={() => setSidebarOpen(false)}
-                className="w-7 h-7 rounded-lg flex items-center justify-center md:hidden"
+              <button onClick={() => setSidebarOpen(false)} className="w-7 h-7 rounded-lg flex items-center justify-center md:hidden"
                 style={{ color: "rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.05)" }}>
                 <X size={14} />
               </button>
@@ -68,8 +53,7 @@ export function Sidebar() {
               <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
                 onClick={() => { clearMessages(); handleNav("/chat"); }}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium text-white"
-                style={{ background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.2)", minHeight: 40 }}
-              >
+                style={{ background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.2)", minHeight: 40 }}>
                 <Plus size={13} style={{ color: "#a78bfa" }} />
                 New conversation
               </motion.button>
@@ -89,23 +73,14 @@ export function Sidebar() {
                   {conversations.map((conv, i) => {
                     const active = activeConversationId === conv.id;
                     return (
-                      <motion.button key={conv.id}
-                        initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                      <motion.button key={conv.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.03 }}
                         onClick={() => handleConvClick(conv.id)}
-                        onMouseEnter={() => setHovered(conv.id)}
-                        onMouseLeave={() => setHovered(null)}
+                        onMouseEnter={() => setHovered(conv.id)} onMouseLeave={() => setHovered(null)}
                         className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all mb-0.5"
-                        style={{
-                          minHeight: 40,
-                          background: active ? "rgba(139,92,246,0.12)" : hovered === conv.id ? "rgba(255,255,255,0.03)" : "transparent",
-                          border: active ? "1px solid rgba(139,92,246,0.2)" : "1px solid transparent",
-                        }}
-                      >
+                        style={{ minHeight: 40, background: active ? "rgba(139,92,246,0.12)" : hovered === conv.id ? "rgba(255,255,255,0.03)" : "transparent", border: active ? "1px solid rgba(139,92,246,0.2)" : "1px solid transparent" }}>
                         <MessageSquare size={11} style={{ color: active ? "#a78bfa" : "rgba(255,255,255,0.2)", flexShrink: 0 }} />
-                        <span className="truncate flex-1 text-xs" style={{ color: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.4)" }}>
-                          {conv.title}
-                        </span>
+                        <span className="truncate flex-1 text-xs" style={{ color: active ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.4)" }}>{conv.title}</span>
                         {active && <ChevronRight size={10} style={{ color: "#a78bfa", flexShrink: 0 }} />}
                       </motion.button>
                     );
@@ -119,8 +94,7 @@ export function Sidebar() {
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs transition-all mb-0.5"
                   style={{ color: pathname === path ? "#a78bfa" : "rgba(255,255,255,0.3)", minHeight: 40 }}
                   onMouseEnter={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.8)"; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = pathname === path ? "#a78bfa" : "rgba(255,255,255,0.3)"; e.currentTarget.style.background = "transparent"; }}
-                >
+                  onMouseLeave={(e) => { e.currentTarget.style.color = pathname === path ? "#a78bfa" : "rgba(255,255,255,0.3)"; e.currentTarget.style.background = "transparent"; }}>
                   <Icon size={13} />{label}
                 </button>
               ))}
@@ -128,13 +102,11 @@ export function Sidebar() {
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs transition-all mb-2"
                 style={{ color: "rgba(255,255,255,0.22)", minHeight: 40 }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = "#f87171"; e.currentTarget.style.background = "rgba(248,113,113,0.06)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.22)"; e.currentTarget.style.background = "transparent"; }}
-              >
+                onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.22)"; e.currentTarget.style.background = "transparent"; }}>
                 <LogOut size={13} />Sign out
               </button>
               {user && (
-                <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl"
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)" }}>
                   <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-semibold text-white flex-shrink-0"
                     style={{ background: "linear-gradient(135deg, #7c3aed, #a78bfa)" }}>
                     {user.username[0].toUpperCase()}

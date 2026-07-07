@@ -49,42 +49,18 @@ export const useStore = create<StoreState>()(
       setConversations: (conversations) => set({ conversations }),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       clearMessages: () => set({ messages: [] }),
-      addMessage: (msg) =>
-        set((state) => {
-          const lastMsg = state.messages[state.messages.length - 1];
-          if (
-            lastMsg &&
-            lastMsg.role === "assistant" &&
-            lastMsg.isStreaming &&
-            msg.role === "assistant"
-          ) {
-            return {
-              messages: [
-                ...state.messages.slice(0, -1),
-                { ...lastMsg, ...msg },
-              ],
-            };
-          }
-          return { messages: [...state.messages, msg] };
-        }),
-      logout: () =>
-        set({
-          token: null,
-          user: null,
-          isLoading: false,
-          messages: [],
-          conversations: [],
-          activeConversationId: null,
-          sidebarOpen: true,
-        }),
+      addMessage: (msg) => set((state) => {
+        const last = state.messages[state.messages.length - 1];
+        if (last && last.role === "assistant" && last.isStreaming && msg.role === "assistant") {
+          return { messages: [...state.messages.slice(0, -1), { ...last, ...msg }] };
+        }
+        return { messages: [...state.messages, msg] };
+      }),
+      logout: () => set({ token: null, user: null, isLoading: false, messages: [], conversations: [], activeConversationId: null, sidebarOpen: true }),
     }),
     {
       name: "lumora-auth-storage",
-      partialize: (state) => ({
-        token: state.token,
-        user: state.user,
-        sidebarOpen: state.sidebarOpen,
-      }),
+      partialize: (state) => ({ token: state.token, user: state.user, sidebarOpen: state.sidebarOpen }),
     }
   )
 );

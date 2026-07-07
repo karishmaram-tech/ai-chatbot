@@ -1,8 +1,4 @@
-"""
-rag.py - RAG pipeline using Neon PostgreSQL with pgvector.
-Uses Gemini API for embeddings. No local ML models.
-"""
-import os
+rag_content = """import os
 import json
 from pypdf import PdfReader
 from app.llm.embeddings import embed_texts, embed_query
@@ -17,7 +13,6 @@ def get_db_url():
         raise RuntimeError("DATABASE_URL environment variable is not set")
     db_url = db_url.replace("postgresql+asyncpg://", "postgresql://")
     db_url = db_url.replace("postgres+asyncpg://", "postgresql://")
-    db_url = db_url.replace("postgres://", "postgresql://")
     return db_url
 
 
@@ -31,15 +26,15 @@ def ensure_table_exists():
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("CREATE EXTENSION IF NOT EXISTS vector;")
-                cur.execute(
-                    "CREATE TABLE IF NOT EXISTS document_chunks ("
-                    "id SERIAL PRIMARY KEY, "
-                    "content TEXT NOT NULL, "
-                    "embedding vector(768), "
-                    "metadata_json TEXT DEFAULT '{}', "
-                    "created_at TIMESTAMPTZ DEFAULT NOW()"
-                    ");"
-                )
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS document_chunks (
+                        id SERIAL PRIMARY KEY,
+                        content TEXT NOT NULL,
+                        embedding vector(768),
+                        metadata_json TEXT DEFAULT '{}',
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    );
+                """)
                 conn.commit()
         logger.info("rag_table_ready")
     except Exception as e:
@@ -85,8 +80,7 @@ def add_document(file_path, file_type="pdf"):
             for chunk, embedding in zip(chunks, embeddings):
                 emb_list = embedding if isinstance(embedding, list) else list(embedding)
                 cur.execute(
-                    "INSERT INTO document_chunks (content, embedding, metadata_json) "
-                    "VALUES (%s, %s::vector, %s);",
+                    "INSERT INTO document_chunks (content, embedding, metadata_json) VALUES (%s, %s::vector, %s);",
                     (chunk, emb_list, json.dumps({"source": os.path.basename(file_path)}))
                 )
             conn.commit()
@@ -106,10 +100,13 @@ def search_documents(query, top_k=5):
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT content, 1 - (embedding <=> %s::vector) AS similarity "
-                    "FROM document_chunks "
-                    "WHERE 1 - (embedding <=> %s::vector) > 0.3 "
-                    "ORDER BY embedding <=> %s::vector LIMIT %s;",
+                    """
+                    SELECT content, 1 - (embedding <=> %s::vector) AS similarity
+                    FROM document_chunks
+                    WHERE 1 - (embedding <=> %s::vector) > 0.3
+                    ORDER BY embedding <=> %s::vector
+                    LIMIT %s;
+                    """,
                     (query_embedding, query_embedding, query_embedding, top_k)
                 )
                 rows = cur.fetchall()
@@ -132,4 +129,9 @@ def build_rag_context(query):
     context_parts = ["Relevant information from uploaded documents:"]
     for i, result in enumerate(results, 1):
         context_parts.append("[" + str(i) + "] " + result["content"])
-    return chr(10).join(context_parts)
+    return chr(10) + chr(10).join(context_parts)
+"""
+
+with open("app/llm/rag.py", "w", encoding="utf-8", newline="\n") as f:
+    f.write(rag_content)
+print("rag.py overwritten successfully!")
